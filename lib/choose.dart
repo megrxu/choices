@@ -9,14 +9,14 @@ class ChoosePage extends StatefulWidget {
 }
 
 class _ChoosePageState extends State<ChoosePage> {
-  final profilePaths = ["zju-yq", "dice", "yes-or-no"]
-      .map((e) => "profiles/" + e + ".yaml")
+  final profileURLs = ["zju-yq", "dice", "yes-or-no"]
+      .map((e) => "https://static.xugr.me/choices/profiles/" + e + ".yaml")
       .toList();
   @override
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.all(4.0),
-      children: profilePaths
+      children: profileURLs
           .map((e) => ChoiceCard(profile: Profile.fromYaml(e)))
           .toList(),
     );
