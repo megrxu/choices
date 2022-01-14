@@ -1,0 +1,7 @@
+name: "是或否"
+icon: "❓"
+categories:
+  - name: default
+    choices:
+      - name: '好的'
+      - name: '不行'
