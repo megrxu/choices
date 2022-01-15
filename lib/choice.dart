@@ -1,6 +1,5 @@
 import 'dart:math';
 
-import "package:flutter/services.dart" as s;
 import "package:yaml/yaml.dart";
 import 'package:http/http.dart' as http;
 
@@ -11,23 +10,27 @@ class Choice {
   static Choice fromMap(Map map) {
     var c = Choice();
     c.name = map["name"];
-    // c.tags = map["tags"];
+    if (map.containsKey("tags")) {
+      map["tags"].forEach((e) => c.tags.add(e));
+    }
     return c;
   }
 }
 
 class Category {
   String? name;
-  List<Category> subCatagories = <Category>[];
+  // List<Category> subCatagories = <Category>[];
   List<Choice> choices = <Choice>[];
 
   static Category fromMap(Map map) {
     var c = Category();
     c.name = map["name"];
-    // TODO
-    // c.subCatagories = map["catagories"]
-    //     .map<Category>((subCatagories) => Category.fromMap(subCatagories))
-    //     .toList();
+    // TODO: subCatagories
+    // c.subCatagories = map.containsKey("catagories")
+    //     ? map["catagories"]
+    //         .map<Category>((subCatagories) => Category.fromMap(subCatagories))
+    //         .toList()
+    //     : <Category>[];
     c.choices =
         map["choices"].map<Choice>((choice) => Choice.fromMap(choice)).toList();
     return c;
@@ -36,10 +39,8 @@ class Category {
 
 class ChoiceConstraint {
   // TODO
-  List<Category> belongsTo = [];
-  List<Category> noBelongsTo = [];
-  List<String> includeTags = [];
-  List<String> excludeTags = [];
+  Set<Category> belongsTo = {};
+  Set<String> includeTags = {};
 }
 
 class Profile {
@@ -49,13 +50,45 @@ class Profile {
 
   final _random = Random();
 
-  List<Choice> getChoices(ChoiceConstraint? constraint) {
-    return categories.fold([], (res, element) => res + element.choices);
+  Set<String> getAllTags() {
+    return categories.fold(
+        {},
+        (res, cat) => res.union(cat.choices
+            .fold({}, (res, choice) => res.union(choice.tags.toSet()))));
   }
 
-  Choice getRandomChoice(ChoiceConstraint? constraint) {
+  ChoiceConstraint initChoiceConstraint() {
+    var cc = ChoiceConstraint();
+    cc.includeTags = getAllTags();
+    cc.belongsTo = categories.toSet();
+    return cc;
+  }
+
+  List<Choice> getChoices(ChoiceConstraint? constraint) {
+    if (constraint == null) {
+      return categories.fold([], (res, element) => res + element.choices);
+    } else {
+      var excludeTags = getAllTags();
+      excludeTags.removeAll(constraint.includeTags);
+      return categories.fold(
+          [],
+          (res, element) =>
+              res +
+              element.choices
+                  .where((c) => c.tags
+                      .toSet()
+                      .any((element) => !(excludeTags.contains(element))))
+                  .toList());
+    }
+  }
+
+  Choice? getRandomChoice(ChoiceConstraint? constraint) {
     var currentChoices = getChoices(constraint);
-    return currentChoices[_random.nextInt(currentChoices.length)];
+    if (currentChoices.isEmpty) {
+      return null;
+    } else {
+      return currentChoices[_random.nextInt(currentChoices.length)];
+    }
   }
 
   static Future<Profile> fromYaml(String url) async {
