@@ -39,7 +39,7 @@ class _NavigationWidgetState extends State<NavigationWidget> {
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
-            icon: Icon(Icons.diamond),
+            icon: Icon(Icons.assistant),
             label: '随机',
           ),
           BottomNavigationBarItem(
