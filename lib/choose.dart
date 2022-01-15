@@ -54,7 +54,9 @@ class _ChoiceCardState extends State<ChoiceCard> {
                   builder: (context, snapshot) {
                     if (snapshot.hasData) {
                       var profile = snapshot.data as Profile;
-                      _choiceConstraint ??= profile.initChoiceConstraint();
+                      _choiceConstraint ??= profile.getAllTags().isEmpty
+                          ? null
+                          : profile.initChoiceConstraint();
                       return _renderProfile(profile);
                     } else if (snapshot.hasError) {
                       return _renderNotReady("$snapshot.error");
