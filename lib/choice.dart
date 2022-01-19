@@ -35,50 +35,20 @@ class Category {
         map["choices"].map<Choice>((choice) => Choice.fromMap(choice)).toList();
     return c;
   }
-}
-
-class ChoiceConstraint {
-  // TODO
-  Set<Category> belongsTo = {};
-  Set<String> includeTags = {};
-}
-
-class Profile {
-  String name = "";
-  String icon = "🎲";
-  List<Category> categories = <Category>[];
 
   final _random = Random();
 
   Set<String> getAllTags() {
-    return categories.fold(
-        {},
-        (res, cat) => res.union(cat.choices
-            .fold({}, (res, choice) => res.union(choice.tags.toSet()))));
-  }
-
-  ChoiceConstraint initChoiceConstraint() {
-    var cc = ChoiceConstraint();
-    cc.includeTags = getAllTags();
-    cc.belongsTo = categories.toSet();
-    return cc;
+    return choices.fold({}, (res, choice) => res.union(choice.tags.toSet()));
   }
 
   List<Choice> getChoices(ChoiceConstraint? constraint) {
-    if (constraint == null) {
-      return categories.fold([], (res, element) => res + element.choices);
+    if (constraint == null || constraint.includeTags.isEmpty) {
+      return choices;
     } else {
-      var excludeTags = getAllTags();
-      excludeTags.removeAll(constraint.includeTags);
-      return categories.fold(
-          [],
-          (res, element) =>
-              res +
-              element.choices
-                  .where((c) => c.tags
-                      .toSet()
-                      .any((element) => !(excludeTags.contains(element))))
-                  .toList());
+      return choices
+          .where((c) => c.tags.toSet().containsAll(constraint.includeTags))
+          .toList();
     }
   }
 
@@ -89,6 +59,37 @@ class Profile {
     } else {
       return currentChoices[_random.nextInt(currentChoices.length)];
     }
+  }
+}
+
+class ChoiceConstraint {
+  // TODO
+  Set<Category> belongsTo = {};
+  Set<String> includeTags = {};
+}
+
+class Profile {
+  String name = "自定义";
+  String icon = "🎲";
+  List<Category> categories = <Category>[];
+
+  static Set<String> getAllTags(Set<Category>? categories) {
+    return categories?.fold(
+            {},
+            (res, cat) => res!.union(cat.choices
+                .fold({}, (res, choice) => res.union(choice.tags.toSet())))) ??
+        {};
+  }
+
+  Category? getCategoryByString(String? name) {
+    return categories.firstWhere((cat) => cat.name == name);
+  }
+
+  ChoiceConstraint initChoiceConstraint() {
+    var cc = ChoiceConstraint();
+    cc.includeTags = {};
+    cc.belongsTo = {categories.first};
+    return cc;
   }
 
   static Future<Profile> fromYaml(String url) async {

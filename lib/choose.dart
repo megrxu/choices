@@ -17,14 +17,14 @@ class _ChoosePageState extends State<ChoosePage> {
     return ListView(
       padding: const EdgeInsets.all(4.0),
       children: profileURLs
-          .map((e) => ChoiceCard(profile: Profile.fromYaml(e)))
+          .map((e) => ProfileCard(profile: Profile.fromYaml(e)))
           .toList(),
     );
   }
 }
 
-class ChoiceCard extends StatefulWidget {
-  const ChoiceCard({
+class ProfileCard extends StatelessWidget {
+  const ProfileCard({
     Key? key,
     required this.profile,
   }) : super(key: key);
@@ -32,46 +32,30 @@ class ChoiceCard extends StatefulWidget {
   final Future<Profile> profile;
 
   @override
-  _ChoiceCardState createState() => _ChoiceCardState();
-}
-
-class _ChoiceCardState extends State<ChoiceCard> {
-  Choice? _choice;
-  // TODO
-  ChoiceConstraint? _choiceConstraint;
-  @override
   Widget build(BuildContext context) {
+    var style = Theme.of(context).textTheme.titleLarge;
     return Card(
-        child: InkWell(
-      onTap: () => {},
       child: Container(
           constraints: const BoxConstraints(minHeight: 240),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               FutureBuilder(
-                  future: widget.profile,
+                  future: profile,
                   builder: (context, snapshot) {
                     if (snapshot.hasData) {
-                      var profile = snapshot.data as Profile;
-                      _choiceConstraint ??= profile.getAllTags().isEmpty
-                          ? null
-                          : profile.initChoiceConstraint();
-                      return _renderProfile(profile);
+                      return ProfileWidget(profile: snapshot.data as Profile);
                     } else if (snapshot.hasError) {
-                      return _renderNotReady("$snapshot.error");
+                      return _renderNotReady(style, "发生了错误");
                     }
-                    return _renderNotReady("加载中...");
+                    return _renderNotReady(style, "加载中...");
                   }),
-              const Divider(),
-              _renderChoice(_choice),
             ],
           )),
-    ));
+    );
   }
 
-  Widget _renderNotReady(String text) {
-    var style = Theme.of(context).textTheme.titleLarge;
+  Widget _renderNotReady(style, String text) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
@@ -82,58 +66,127 @@ class _ChoiceCardState extends State<ChoiceCard> {
       ],
     );
   }
+}
 
-  Widget _renderProfile(Profile profile) {
+class ProfileWidget extends StatefulWidget {
+  final Profile profile;
+
+  const ProfileWidget({Key? key, required this.profile}) : super(key: key);
+
+  @override
+  _ProfileWidgetState createState() => _ProfileWidgetState();
+}
+
+class _ProfileWidgetState extends State<ProfileWidget> {
+  ChoiceConstraint? _choiceConstraint;
+
+  @override
+  Widget build(context) {
     var style = Theme.of(context).textTheme.titleLarge;
+    _choiceConstraint ??= widget.profile.initChoiceConstraint();
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
             ListTile(
-              leading: Text(profile.icon, style: style),
-              title: Text(profile.name, style: style),
-            )
+                leading: Text(widget.profile.icon, style: style),
+                title: Text(widget.profile.name, style: style),
+                trailing: _renderDropdown(widget.profile)),
           ] +
-          _renderProfileConstraints(profile),
+          [CategoryWidget(choiceConstraint: _choiceConstraint)],
     );
   }
 
-  List<Widget> _renderProfileConstraints(Profile profile) {
-    var tags = profile.getAllTags();
+  Widget _renderDropdown(Profile profile) {
+    if (profile.categories.length > 1) {
+      return SizedBox(
+          width: 150,
+          child: DropdownButtonFormField(
+              value: profile.categories.first.name,
+              items: profile.categories
+                  .map((category) => DropdownMenuItem(
+                      value: category.name, child: Text(category.name ?? "默认")))
+                  .toList(),
+              decoration: const InputDecoration(
+                border: InputBorder.none,
+              ),
+              alignment: Alignment.centerRight,
+              onChanged: (String? value) {
+                var cat = profile.getCategoryByString(value);
+                if (cat == null) {
+                  _noChoiceDialog(context);
+                } else {
+                  setState(() {
+                    _choiceConstraint?.belongsTo = {cat};
+                    _choiceConstraint?.includeTags = {};
+                  });
+                }
+              }));
+    } else {
+      return const SizedBox(width: 0.0);
+    }
+  }
+}
+
+class CategoryWidget extends StatefulWidget {
+  final ChoiceConstraint? choiceConstraint;
+
+  const CategoryWidget({Key? key, required this.choiceConstraint})
+      : super(key: key);
+
+  @override
+  _CategoryWidgetState createState() => _CategoryWidgetState();
+}
+
+class _CategoryWidgetState extends State<CategoryWidget> {
+  Choice? _choice;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: _renderCategoryConstraints() + [_renderChoice(_choice)],
+    );
+  }
+
+  List<Widget> _renderCategoryConstraints() {
+    var tags = Profile.getAllTags(widget.choiceConstraint?.belongsTo);
     if (tags.isEmpty) {
       return [];
-    } else {}
-    return [
-      const Divider(),
-      Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12.0),
-          alignment: Alignment.centerLeft,
-          child: Text("标签", style: Theme.of(context).textTheme.caption)),
-      Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Wrap(
-          spacing: 4.0,
-          runSpacing: 4.0,
-          children: profile
-              .getAllTags()
-              .map(
-                (e) => FilterChip(
-                  label: Text(e),
-                  onSelected: (bool value) {
-                    setState(() {
-                      if (_choiceConstraint?.includeTags.contains(e) ?? false) {
-                        _choiceConstraint?.includeTags.remove(e);
-                      } else {
-                        _choiceConstraint?.includeTags.add(e);
-                      }
-                    });
-                  },
-                  selected: _choiceConstraint?.includeTags.contains(e) ?? false,
-                ),
-              )
-              .toList(),
+    } else {
+      return [
+        const Divider(),
+        Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0),
+            alignment: Alignment.centerLeft,
+            child: Text("标签", style: Theme.of(context).textTheme.caption)),
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Wrap(
+            spacing: 4.0,
+            runSpacing: 4.0,
+            children: tags
+                .map(
+                  (e) => FilterChip(
+                    label: Text(e),
+                    onSelected: (bool value) {
+                      setState(() {
+                        if (widget.choiceConstraint?.includeTags.contains(e) ??
+                            false) {
+                          widget.choiceConstraint?.includeTags.remove(e);
+                        } else {
+                          widget.choiceConstraint?.includeTags.add(e);
+                        }
+                      });
+                    },
+                    selected:
+                        widget.choiceConstraint?.includeTags.contains(e) ??
+                            false,
+                  ),
+                )
+                .toList(),
+          ),
         ),
-      ),
-    ];
+      ];
+    }
   }
 
   Widget _renderChoice(Choice? choice) {
@@ -170,11 +223,11 @@ class _ChoiceCardState extends State<ChoiceCard> {
               TextButton(
                 child: Text(choice == null ? '帮我选！' : '再选一次！'),
                 onPressed: () {
-                  widget.profile.then((value) {
-                    setState(() =>
-                        _choice = value.getRandomChoice(_choiceConstraint));
+                  setState(() {
+                    _choice = widget.choiceConstraint?.belongsTo.first
+                        .getRandomChoice(widget.choiceConstraint);
                     if (_choice == null) {
-                      _noChoiceDialog();
+                      _noChoiceDialog(context);
                     }
                   });
                 },
@@ -183,32 +236,32 @@ class _ChoiceCardState extends State<ChoiceCard> {
           ),
         ]));
   }
+}
 
-  Future<void> _noChoiceDialog() async {
-    return showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('没有选择！'),
-          content: SingleChildScrollView(
-            child: ListBody(
-              children: const <Widget>[
-                Text('现在没有可供选择的内容！'),
-                Text('你需要把条件设置得更宽松一点。'),
-              ],
-            ),
+Future<void> _noChoiceDialog(context) async {
+  return showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: const Text('没有选择！'),
+        content: SingleChildScrollView(
+          child: ListBody(
+            children: const <Widget>[
+              Text('现在没有可供选择的内容！'),
+              Text('你需要把条件设置得更宽松一点。'),
+            ],
           ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('重新设置'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
+        ),
+        actions: <Widget>[
+          TextButton(
+            child: const Text('重新设置'),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+          ),
+        ],
+      );
+    },
+  );
 }
