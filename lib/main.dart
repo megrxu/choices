@@ -1,4 +1,4 @@
-import 'package:choices/nav.dart';
+import 'package:choices/views/nav.dart';
 import 'package:flutter/material.dart';
 
 void main() {

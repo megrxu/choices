@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:choices/choose.dart';
+import 'package:choices/views/pages/random.dart';
+import 'package:choices/views/pages/determined.dart';
 
 class NavigationWidget extends StatefulWidget {
   const NavigationWidget({Key? key}) : super(key: key);
@@ -12,13 +13,10 @@ class _NavigationWidgetState extends State<NavigationWidget> {
   int _selectedIndex = 0;
   static const TextStyle optionStyle =
       TextStyle(fontSize: 30, color: Colors.grey);
-  static const List<Widget> _widgetOptions = <Widget>[
+  final List<Widget> _widgetOptions = <Widget>[
     ChoosePage(),
-    Text(
-      '未实现',
-      style: optionStyle,
-    ),
-    Text(
+    DeterminePage(),
+    const Text(
       '未实现',
       style: optionStyle,
     ),
@@ -52,7 +50,7 @@ class _NavigationWidgetState extends State<NavigationWidget> {
           ),
         ],
         currentIndex: _selectedIndex,
-        selectedItemColor: Colors.amber[800],
+        selectedItemColor: Colors.blue,
         onTap: _onItemTapped,
       ),
     );

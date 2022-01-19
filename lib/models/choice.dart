@@ -1,5 +1,4 @@
 import 'dart:math';
-
 import "package:yaml/yaml.dart";
 import 'package:http/http.dart' as http;
 
@@ -60,10 +59,19 @@ class Category {
       return currentChoices[_random.nextInt(currentChoices.length)];
     }
   }
+
+  Choice? getRandomChoiceDetermained(ChoiceConstraint? constraint, int seed) {
+    var _random = Random(seed);
+    var currentChoices = getChoices(constraint);
+    if (currentChoices.isEmpty) {
+      return null;
+    } else {
+      return currentChoices[_random.nextInt(currentChoices.length)];
+    }
+  }
 }
 
 class ChoiceConstraint {
-  // TODO
   Set<Category> belongsTo = {};
   Set<String> includeTags = {};
 }

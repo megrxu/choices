@@ -1,35 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:choices/choice.dart';
+import 'package:choices/models/choice.dart';
+import 'package:choices/views/utils.dart';
 
-class ChoosePage extends StatefulWidget {
-  const ChoosePage({Key? key}) : super(key: key);
-
-  @override
-  _ChoosePageState createState() => _ChoosePageState();
-}
-
-class _ChoosePageState extends State<ChoosePage> {
-  final profileURLs = ["zju-yq", "dice", "yes-or-no"]
-      .map((e) => "https://static.xugr.me/choices/profiles/" + e + ".yaml")
-      .toList();
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(4.0),
-      children: profileURLs
-          .map((e) => ProfileCard(profile: Profile.fromYaml(e)))
-          .toList(),
-    );
-  }
-}
+typedef ChoiceWidgetCallBack = Widget Function(ChoiceConstraint? constraint);
 
 class ProfileCard extends StatelessWidget {
   const ProfileCard({
     Key? key,
     required this.profile,
+    required this.choiceWidgetCallBack,
   }) : super(key: key);
 
   final Future<Profile> profile;
+  final ChoiceWidgetCallBack choiceWidgetCallBack;
 
   @override
   Widget build(BuildContext context) {
@@ -44,7 +27,9 @@ class ProfileCard extends StatelessWidget {
                   future: profile,
                   builder: (context, snapshot) {
                     if (snapshot.hasData) {
-                      return ProfileWidget(profile: snapshot.data as Profile);
+                      return ProfileWidget(
+                          profile: snapshot.data as Profile,
+                          choiceWidgetCallBack: choiceWidgetCallBack);
                     } else if (snapshot.hasError) {
                       return _renderNotReady(style, "发生了错误");
                     }
@@ -70,8 +55,11 @@ class ProfileCard extends StatelessWidget {
 
 class ProfileWidget extends StatefulWidget {
   final Profile profile;
+  final ChoiceWidgetCallBack choiceWidgetCallBack;
 
-  const ProfileWidget({Key? key, required this.profile}) : super(key: key);
+  const ProfileWidget(
+      {Key? key, required this.profile, required this.choiceWidgetCallBack})
+      : super(key: key);
 
   @override
   _ProfileWidgetState createState() => _ProfileWidgetState();
@@ -92,7 +80,11 @@ class _ProfileWidgetState extends State<ProfileWidget> {
                 title: Text(widget.profile.name, style: style),
                 trailing: _renderDropdown(widget.profile)),
           ] +
-          [CategoryWidget(choiceConstraint: _choiceConstraint)],
+          [
+            CategoryWidget(
+                choiceConstraint: _choiceConstraint,
+                choiceWidgetCallBack: widget.choiceWidgetCallBack)
+          ],
     );
   }
 
@@ -113,7 +105,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
               onChanged: (String? value) {
                 var cat = profile.getCategoryByString(value);
                 if (cat == null) {
-                  _noChoiceDialog(context);
+                  noChoiceDialog(context);
                 } else {
                   setState(() {
                     _choiceConstraint?.belongsTo = {cat};
@@ -129,8 +121,12 @@ class _ProfileWidgetState extends State<ProfileWidget> {
 
 class CategoryWidget extends StatefulWidget {
   final ChoiceConstraint? choiceConstraint;
+  final ChoiceWidgetCallBack choiceWidgetCallBack;
 
-  const CategoryWidget({Key? key, required this.choiceConstraint})
+  const CategoryWidget(
+      {Key? key,
+      required this.choiceConstraint,
+      required this.choiceWidgetCallBack})
       : super(key: key);
 
   @override
@@ -138,12 +134,11 @@ class CategoryWidget extends StatefulWidget {
 }
 
 class _CategoryWidgetState extends State<CategoryWidget> {
-  Choice? _choice;
-
   @override
   Widget build(BuildContext context) {
     return Column(
-      children: _renderCategoryConstraints() + [_renderChoice(_choice)],
+      children: _renderCategoryConstraints() +
+          [widget.choiceWidgetCallBack(widget.choiceConstraint)],
     );
   }
 
@@ -188,80 +183,4 @@ class _CategoryWidgetState extends State<CategoryWidget> {
       ];
     }
   }
-
-  Widget _renderChoice(Choice? choice) {
-    return Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(children: <Widget>[
-          Padding(
-            padding:
-                const EdgeInsets.symmetric(vertical: 8.0, horizontal: 48.0),
-            child: SizedBox(
-                height: 120,
-                width: 360,
-                child: FittedBox(
-                  fit: BoxFit.contain,
-                  child: Text(choice?.name ?? "等待决定...",
-                      style: TextStyle(
-                          color: choice == null ? Colors.grey : Colors.black,
-                          fontSize: 60)),
-                )),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: <Widget>[
-              choice == null
-                  ? const SizedBox(width: 0)
-                  : TextButton(
-                      child: const Text('重置'),
-                      onPressed: () {
-                        setState(() {
-                          _choice = null;
-                        });
-                      },
-                    ),
-              TextButton(
-                child: Text(choice == null ? '帮我选！' : '再选一次！'),
-                onPressed: () {
-                  setState(() {
-                    _choice = widget.choiceConstraint?.belongsTo.first
-                        .getRandomChoice(widget.choiceConstraint);
-                    if (_choice == null) {
-                      _noChoiceDialog(context);
-                    }
-                  });
-                },
-              )
-            ],
-          ),
-        ]));
-  }
-}
-
-Future<void> _noChoiceDialog(context) async {
-  return showDialog<void>(
-    context: context,
-    barrierDismissible: false,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        title: const Text('没有选择！'),
-        content: SingleChildScrollView(
-          child: ListBody(
-            children: const <Widget>[
-              Text('现在没有可供选择的内容！'),
-              Text('你需要把条件设置得更宽松一点。'),
-            ],
-          ),
-        ),
-        actions: <Widget>[
-          TextButton(
-            child: const Text('重新设置'),
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-          ),
-        ],
-      );
-    },
-  );
 }
